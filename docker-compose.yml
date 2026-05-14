@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: postgres-etudiants
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: etudiants_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - etudiants-network
+
+  api:
+    build:
+      context: ./api-spring-boot
+    container_name: api-etudiants
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - etudiants-network
+
+volumes:
+  postgres_data:
+
+networks:
+  etudiants-network:
+    driver: bridge
