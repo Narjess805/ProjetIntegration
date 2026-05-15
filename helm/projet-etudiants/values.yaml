@@ -1,0 +1,30 @@
+replicaCount:
+  etudiantService: 2
+  gradingService: 1
+  notificationService: 1
+  authService: 1
+  frontend: 1
+
+images:
+  etudiantService:
+    repository: sen5e1/projet-etudiants-etudiant-service
+    tag: "2.0"
+
+  gradingService:
+    repository: sen5e1/projet-etudiants-grading-service
+    tag: "2.0"
+
+  notificationService:
+    repository: sen5e1/projet-etudiants-notification-service
+    tag: "2.0"
+
+  authService:
+    repository: sen5e1/projet-etudiants-auth-service
+    tag: "2.0"
+
+  frontend:
+    repository: sen5e1/projet-etudiants-frontend
+    tag: "2.0"
+
+ingress:
+  host: projet-etudiants.local

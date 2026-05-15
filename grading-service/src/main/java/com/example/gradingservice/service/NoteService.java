@@ -1,8 +1,7 @@
 package com.example.gradingservice.service;
 
-import com.example.gradingservice.client.StudentClient;
+import com.example.gradingservice.client.EtudiantClient;
 import com.example.gradingservice.dto.NoteDTO;
-import com.example.gradingservice.kafka.KafkaProducerService;
 import com.example.gradingservice.mapper.NoteMapper;
 import com.example.gradingservice.model.Note;
 import com.example.gradingservice.repository.NoteRepository;
@@ -17,23 +16,18 @@ import java.util.stream.Collectors;
 public class NoteService {
 
     private final NoteRepository noteRepository;
-    private final StudentClient studentClient;
-    private final KafkaProducerService kafkaProducerService;
+    private final EtudiantClient etudiantClient;
 
     public NoteDTO create(NoteDTO noteDTO) {
 
         try {
-            studentClient.getStudentById(noteDTO.getStudentId());
+            etudiantClient.findById(noteDTO.getStudentId());
         } catch (Exception e) {
             throw new RuntimeException("Student not found with id: " + noteDTO.getStudentId());
         }
 
         Note note = NoteMapper.toEntity(noteDTO);
-        NoteDTO saved = NoteMapper.toDTO(noteRepository.save(note));
-        
-        kafkaProducerService.publishNoteCreated(saved);
-        
-        return saved;
+        return NoteMapper.toDTO(noteRepository.save(note));
     }
 
     public NoteDTO getById(Long id) {
@@ -56,7 +50,7 @@ public class NoteService {
                 .orElseThrow(() -> new RuntimeException("Note not found with id: " + id));
 
         try {
-            studentClient.getStudentById(noteDTO.getStudentId());
+            etudiantClient.findById(noteDTO.getStudentId());
         } catch (Exception e) {
             throw new RuntimeException("Student not found with id: " + noteDTO.getStudentId());
         }

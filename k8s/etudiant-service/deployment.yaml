@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: etudiant-service
+
+spec:
+  replicas: 2 # 2 replicas pour la haute disponibilité
+
+  selector:
+    matchLabels:
+      app: etudiant-service
+
+  template:
+    metadata:
+      labels:
+        app: etudiant-service
+
+    spec:
+      containers:
+        - name: etudiant-service
+          image: sen5e1/projet-etudiants-etudiant-service:2.0
+
+          ports:
+            - containerPort: 8081
+
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/etudiantsdb
+
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
+            - name: SPRING_REDIS_HOST
+              value: redis
+
+          # Les probes permettent à Kubernetes de savoir si le pod est prêt
+          # à recevoir du trafic (readiness) et s'il est encore vivant (liveness).
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 30

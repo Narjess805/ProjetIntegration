@@ -1,0 +1,17 @@
+# Le PVC réclame 1 Go de stockage persistant.
+# Contrairement à la Partie 2 (sans persistance), ici les données survivent
+# au redémarrage des pods — indispensable en production.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+
+metadata:
+  name: postgres-pvc
+
+spec:
+  accessModes:
+    - ReadWriteOnce # Un seul pod peut écrire à la fois (adapté à PostgreSQL)
+
+  resources:
+    requests:
+      storage: 1Gi

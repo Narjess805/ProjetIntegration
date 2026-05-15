@@ -119,21 +119,6 @@ services:
     networks:
       - microservices-network
 
-  eureka-server:
-    build:
-      context: ./eureka-server
-    container_name: eureka-server
-    ports:
-      - "${EUREKA_PORT}:8761"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - microservices-network
-
   etudiant-service:
     build:
       context: ./api-spring-boot
@@ -145,8 +130,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-      eureka-server:
-        condition: service_healthy
       kafka:
         condition: service_started
     healthcheck:
@@ -162,7 +145,6 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_DATA_REDIS_HOST: ${REDIS_INTERNAL_HOST}
       SPRING_DATA_REDIS_PORT: ${REDIS_INTERNAL_PORT}
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVICE_URL}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     networks:
       - microservices-network
@@ -175,8 +157,6 @@ services:
       - "${GRADING_SERVICE_PORT}:8082"
     depends_on:
       postgres:
-        condition: service_healthy
-      eureka-server:
         condition: service_healthy
       kafka:
         condition: service_started
@@ -191,7 +171,6 @@ services:
       SPRING_DATASOURCE_URL: ${DB_INTERNAL_URL}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVICE_URL}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     networks:
       - microservices-network
@@ -205,8 +184,6 @@ services:
     depends_on:
       kafka:
         condition: service_started
-      eureka-server:
-        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
       interval: 30s
@@ -216,49 +193,34 @@ services:
     environment:
       SERVER_PORT: 8083
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVICE_URL}
     networks:
       - microservices-network
 
-  api-gateway:
+  frontend:
     build:
-      context: ./api-gateway
-    container_name: api-gateway
+      context: ./frontend
+    container_name: frontend
     ports:
-      - "${GATEWAY_PORT}:8080"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
+      - "${FRONTEND_PORT}:3000"
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVICE_URL}
+      NEXT_PUBLIC_API_URL: http://api-gateway:8080
+    depends_on:
+      - api-gateway
     networks:
       - microservices-network
 
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #   container_name: frontend
-  #   ports:
-  #     - "${FRONTEND_PORT}:3000"
-  #   environment:
-  #     NEXT_PUBLIC_API_URL: http://api-gateway:8080
-  #   depends_on:
-  #     - api-gateway
-  #   networks:
-  #     - microservices-network
+  mongodb:
+    image: mongo:7-jammy
+    ports:
+      - "27017:27017"
 
-  # mongodb:
-  #   image: mongo:7-jammy
-  #   ports:
-  #     - "27017:27017"
-
-  # auth-service:
-  #   build: ./auth-service
-  #   ports:
-  #     - "3001:3001"
-  #   depends_on:
-  #     - mongodb
-  #   environment:
-  #     PORT: 3001
-  #     MONGO_URI: mongodb://mongodb:27017/authdb
-  #     JWT_SECRET: votre_secret_jwt_ici
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mongodb
+    environment:
+      PORT: 3001
+      MONGO_URI: mongodb://mongodb:27017/authdb
+      JWT_SECRET: votre_secret_jwt_ici

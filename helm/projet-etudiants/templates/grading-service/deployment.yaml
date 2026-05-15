@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grading-service
+spec:
+  replicas: {{ .Values.replicaCount.gradingService }}
+  selector:
+    matchLabels:
+      app: grading-service
+  template:
+    metadata:
+      labels:
+        app: grading-service
+    spec:
+      containers:
+        - name: grading-service
+          image: "{{ .Values.images.gradingService.repository }}:{{ .Values.images.gradingService.tag }}"
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/etudiantsdb
+
+            - name: CLIENTS_API_SPRING_BOOT_URL
+              value: http://etudiant-service:8081
