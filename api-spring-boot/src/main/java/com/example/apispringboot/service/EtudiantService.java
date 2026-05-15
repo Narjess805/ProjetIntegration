@@ -1,6 +1,7 @@
 package com.example.apispringboot.service;
 
 import com.example.apispringboot.dto.EtudiantDTO;
+import com.example.apispringboot.kafka.KafkaProducerService;
 import com.example.apispringboot.model.Departement;
 import com.example.apispringboot.model.Etudiant;
 import com.example.apispringboot.exception.ResourceNotFoundException;
@@ -21,6 +22,7 @@ public class EtudiantService {
     private final EtudiantRepository etudiantRepository;
     private final DepartementRepository departementRepository;
     private final EtudiantMapper etudiantMapper;
+    private final KafkaProducerService kafkaProducerService;
 
     @Cacheable(value = "etudiants")
     public List<EtudiantDTO> findAll() {
@@ -63,11 +65,20 @@ public class EtudiantService {
         Departement departement = null;
         if (dto.getDepartementId() != null) {
             departement = departementRepository.findById(dto.getDepartementId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Département introuvable avec id " + dto.getDepartementId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Département introuvable avec id " + dto.getDepartementId()
+                    ));
         }
 
         Etudiant etudiant = etudiantMapper.toEntity(dto, departement);
-        return etudiantMapper.toDTO(etudiantRepository.save(etudiant));
+
+        Etudiant saved = etudiantRepository.save(etudiant);
+
+        EtudiantDTO savedDto = etudiantMapper.toDTO(saved);
+
+        kafkaProducerService.publishEtudiantCreated(savedDto);
+
+        return savedDto;
     }
 
     @CacheEvict(value = "etudiants", allEntries = true)

@@ -20,12 +20,102 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - microservices-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: redis
     ports:
       - "${REDIS_PORT}:6379"
+    networks:
+      - microservices-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # Désactivé pour simplifier en dev
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    networks:
+      - microservices-network
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.0
+    container_name: logstash
+    ports:
+      - "5000:5000" # Port TCP pour la réception des logs
+      - "9600:9600" # Port de monitoring Logstash
+    volumes:
+      - ./observability/logstash/pipeline:/usr/share/logstash/pipeline
+    depends_on:
+      - elasticsearch
+    networks:
+      - microservices-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - microservices-network
+
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - microservices-network
+
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: grafana
+    ports:
+      - "3002:3000"
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    networks:
+      - microservices-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - microservices-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # PLAINTEXT_HOST permet aux outils tournant sur votre machine (hors Docker)
+      # d'accéder à Kafka via localhost:9092.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     networks:
       - microservices-network
 
@@ -51,9 +141,20 @@ services:
     ports:
       - "${ETUDIANT_SERVICE_PORT}:8081"
     depends_on:
-      - postgres
-      - redis
-      - eureka-server
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     environment:
       SERVER_PORT: ${ETUDIANT_SERVICE_PORT}
       SPRING_DATASOURCE_URL: ${DB_INTERNAL_URL}
@@ -62,6 +163,7 @@ services:
       SPRING_DATA_REDIS_HOST: ${REDIS_INTERNAL_HOST}
       SPRING_DATA_REDIS_PORT: ${REDIS_INTERNAL_PORT}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVICE_URL}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     networks:
       - microservices-network
 
@@ -72,13 +174,48 @@ services:
     ports:
       - "${GRADING_SERVICE_PORT}:8082"
     depends_on:
-      - postgres
-      - eureka-server
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     environment:
       SERVER_PORT: ${GRADING_SERVICE_PORT}
       SPRING_DATASOURCE_URL: ${DB_INTERNAL_URL}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVICE_URL}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    networks:
+      - microservices-network
+
+  notification-service:
+    build:
+      context: ./notification-service
+    container_name: notification-service
+    ports:
+      - "8083:8083"
+    depends_on:
+      kafka:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    environment:
+      SERVER_PORT: 8083
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVICE_URL}
     networks:
       - microservices-network
@@ -97,30 +234,31 @@ services:
     networks:
       - microservices-network
 
-  frontend:
-    build:
-      context: ./frontend
-    container_name: frontend
-    ports:
-      - "${FRONTEND_PORT}:3000"
-    environment:
-      - "${NEXT_PUBLIC_API_URL}:http://api-gateway:8080"
-    depends_on:
-      - api-gateway
-    networks:
-      - microservices-network
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #   container_name: frontend
+  #   ports:
+  #     - "${FRONTEND_PORT}:3000"
+  #   environment:
+  #     NEXT_PUBLIC_API_URL: http://api-gateway:8080
+  #   depends_on:
+  #     - api-gateway
+  #   networks:
+  #     - microservices-network
 
-  mongodb:
-    image: mongo:7
-    ports:
-      - "27017:27017"
+  # mongodb:
+  #   image: mongo:7-jammy
+  #   ports:
+  #     - "27017:27017"
 
-  auth-service:
-    build: ./auth-service
-    ports:
-      - "3001:3001"
-    depends_on:
-      - mongodb
-    environment:
-      MONGO_URI: mongodb://mongodb:27017/authdb
-      JWT_SECRET: votre_secret_jwt_ici
+  # auth-service:
+  #   build: ./auth-service
+  #   ports:
+  #     - "3001:3001"
+  #   depends_on:
+  #     - mongodb
+  #   environment:
+  #     PORT: 3001
+  #     MONGO_URI: mongodb://mongodb:27017/authdb
+  #     JWT_SECRET: votre_secret_jwt_ici
