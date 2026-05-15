@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface EtudiantRepository extends JpaRepository<Etudiant, Long> {
     List<Etudiant> findByAnneePremiereInscription(int annee);
+    List<Etudiant> findByDepartementId(Long departementId);
 }

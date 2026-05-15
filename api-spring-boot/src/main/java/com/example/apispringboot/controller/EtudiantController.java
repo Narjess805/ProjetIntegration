@@ -16,7 +16,12 @@ public class EtudiantController {
     private final EtudiantService etudiantService;
 
     @GetMapping
-    public List<EtudiantDTO> getAll(@RequestParam(required = false) Integer annee) {
+    public List<EtudiantDTO> getAll(
+            @RequestParam(required = false) Integer annee,
+            @RequestParam(required = false) Long deptId) {
+        if (deptId != null) {
+            return etudiantService.findByDepartement(deptId);
+        }
         return etudiantService.findByAnnee(annee);
     }
 

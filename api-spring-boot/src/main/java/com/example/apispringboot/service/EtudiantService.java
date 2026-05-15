@@ -41,6 +41,17 @@ public class EtudiantService {
                 .toList();
     }
 
+    @Cacheable(value = "etudiants")
+    public List<EtudiantDTO> findByDepartement(Long deptId) {
+        List<Etudiant> etudiants = (deptId == null)
+                ? etudiantRepository.findAll()
+                : etudiantRepository.findByDepartementId(deptId);
+
+        return etudiants.stream()
+                .map(etudiantMapper::toDTO)
+                .toList();
+    }
+
     public EtudiantDTO findById(Long id) {
         Etudiant etudiant = etudiantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Étudiant introuvable avec id " + id));

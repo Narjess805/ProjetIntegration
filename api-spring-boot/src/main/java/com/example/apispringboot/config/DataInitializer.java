@@ -23,7 +23,7 @@ public class DataInitializer {
 
                 repository.save(Etudiant.builder()
                         .cin("12345679")
-                        .nom("Mohamed")
+                        .nom("narjess")
                         .dateNaissance(LocalDate.of(2001, 3, 22))
                         .build());
 
