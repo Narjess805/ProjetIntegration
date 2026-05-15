@@ -19,8 +19,15 @@ const StudentCard = ({ student }) => {
           
           <View style={styles.nameContainer}>
             <Text style={styles.nom}>{student.nom}</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Étudiant Actif</Text>
+            <View style={styles.metaRow}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Étudiant Actif</Text>
+              </View>
+              {student.departementNom ? (
+                <View style={styles.deptPill}>
+                  <Text style={styles.deptPillText}>{student.departementNom}</Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -141,6 +148,23 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
     fontWeight: '500',
     marginTop: 1,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deptPill: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  deptPillText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

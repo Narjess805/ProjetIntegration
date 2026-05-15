@@ -4,6 +4,7 @@ import {
   Text, 
   View, 
   FlatList, 
+  ScrollView,
   StatusBar, 
   SafeAreaView, 
   ActivityIndicator,
@@ -19,11 +20,16 @@ import StudentCard from './components/StudentCard';
 
 const { width, height } = Dimensions.get('window');
 
-// Remplacer par l'IP de votre machine pour tester sur un appareil physique
-const API_URL = 'http://localhost:8080/api/etudiants'; 
+// Base URL de l'API Gateway (toutes les requêtes passent par ici)
+// Remplacez par l'adresse de votre API Gateway si différente
+const API_GATEWAY = 'http://localhost:8080';
+const DEPTS_URL = `${API_GATEWAY}/api/departements`;
+const ETUDIANTS_URL = `${API_GATEWAY}/api/etudiants`;
 
 export default function App() {
   const [students, setStudents] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [selectedDeptId, setSelectedDeptId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -33,7 +39,7 @@ export default function App() {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(API_URL);
+      const response = await axios.get(ETUDIANTS_URL);
       setStudents(response.data);
     } catch (err) {
       console.error('Fetch error:', err);
@@ -44,7 +50,17 @@ export default function App() {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const resp = await axios.get(DEPTS_URL);
+      setDepartments(resp.data || []);
+    } catch (err) {
+      console.error('Fetch departments error:', err);
+    }
+  };
+
   useEffect(() => {
+    fetchDepartments();
     fetchStudents();
   }, []);
 
@@ -53,9 +69,11 @@ export default function App() {
     fetchStudents();
   };
 
-  const filteredStudents = students.filter(s => 
+  const deptFiltered = selectedDeptId ? students.filter(s => s.departementId === selectedDeptId) : students;
+
+  const filteredStudents = deptFiltered.filter(s => 
     s.nom.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    s.cin.includes(searchQuery)
+    (s.cin && s.cin.includes(searchQuery))
   );
 
   const renderHeader = () => (
@@ -105,6 +123,17 @@ export default function App() {
           <Plus color="#FFF" size={24} />
         </TouchableOpacity>
       </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.deptScroll} contentContainerStyle={{paddingVertical: 12}}>
+        <TouchableOpacity onPress={() => setSelectedDeptId(null)} style={[styles.deptChip, selectedDeptId === null && styles.deptChipActive]}>
+          <Text style={[styles.deptChipText, selectedDeptId === null && styles.deptChipTextActive]}>Tous</Text>
+        </TouchableOpacity>
+        {departments.map(d => (
+          <TouchableOpacity key={d.id} onPress={() => setSelectedDeptId(d.id)} style={[styles.deptChip, selectedDeptId === d.id && styles.deptChipActive]}>
+            <Text style={[styles.deptChipText, selectedDeptId === d.id && styles.deptChipTextActive]}>{d.nom}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   );
 
@@ -265,6 +294,27 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     gap: 12,
+  },
+  deptScroll: {
+    marginTop: 12,
+    paddingHorizontal: 20,
+  },
+  deptChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 999,
+    marginRight: 10,
+  },
+  deptChipActive: {
+    backgroundColor: '#4F46E5',
+  },
+  deptChipText: {
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  deptChipTextActive: {
+    color: '#FFF',
   },
   searchBar: {
     flex: 1,
