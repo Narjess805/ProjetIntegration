@@ -29,6 +29,22 @@ services:
       - "8080:8080"
     depends_on:
       - db
+      - redis
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/etudiants_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    networks:
+      - etudiants-network
+
+  redis:
+    image: redis:7
+    container_name: redis-etudiants
+    ports:
+      - "6379:6379"
     networks:
       - etudiants-network
 

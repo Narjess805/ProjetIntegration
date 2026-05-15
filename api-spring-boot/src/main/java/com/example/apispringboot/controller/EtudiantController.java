@@ -1,24 +1,44 @@
 package com.example.apispringboot.controller;
 
-import com.example.apispringboot.model.Etudiant;
+import com.example.apispringboot.dto.EtudiantDTO;
 import com.example.apispringboot.service.EtudiantService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/etudiants")
-@CrossOrigin(origins = "*")
+@RequiredArgsConstructor
 public class EtudiantController {
 
     private final EtudiantService etudiantService;
 
-    public EtudiantController(EtudiantService etudiantService) {
-        this.etudiantService = etudiantService;
+    @GetMapping
+    public List<EtudiantDTO> getAll(@RequestParam(required = false) Integer annee) {
+        return etudiantService.findByAnnee(annee);
     }
 
-    @GetMapping
-    public List<Etudiant> getAllEtudiants() {
-        return etudiantService.getAllEtudiants();
+    @GetMapping("/{id}")
+    public EtudiantDTO getById(@PathVariable Long id) {
+        return etudiantService.findById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public EtudiantDTO create(@RequestBody EtudiantDTO dto) {
+        return etudiantService.save(dto);
+    }
+
+    @PutMapping("/{id}")
+    public EtudiantDTO update(@PathVariable Long id, @RequestBody EtudiantDTO dto) {
+        return etudiantService.update(id, dto);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        etudiantService.delete(id);
     }
 }
