@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: sen5e1/projet-etudiants-frontend:2.0
+          image: narjessdebbach/projet-etudiants-frontend:2.0
           ports:
             - containerPort: 3000
           env:

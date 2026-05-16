@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: sen5e1/projet-etudiants-auth-service:2.0
+          image: narjessdebbach/projet-etudiants-auth-service:2.0
           ports:
             - containerPort: 3001
           env:

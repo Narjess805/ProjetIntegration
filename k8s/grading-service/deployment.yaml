@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: grading-service
-          image: sen5e1/projet-etudiants-grading-service:2.0
+          image: narjessdebbach/projet-etudiants-grading-service:2.0
           ports:
             - containerPort: 8082
           env:

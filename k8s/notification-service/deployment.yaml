@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: notification-service
-          image: sen5e1/projet-etudiants-notification-service:2.0
+          image: narjessdebbach/projet-etudiants-notification-service:2.0
           ports:
             - containerPort: 8083
           env:
